@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -50,7 +51,7 @@ namespace TaskSpanRecorder.Controls
             AutoFitTimeline();
         }
 
-        private void TimeLineScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
+        private void TimelineScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             AutoFitTimeline();
         }
@@ -82,5 +83,23 @@ namespace TaskSpanRecorder.Controls
 
             }), DispatcherPriority.Loaded);
         }
+    }
+    public class CategoryYConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (values.Length == 2 && values[0] is Models.TaskCategory category && values[1] is IEnumerable<Models.TaskCategory> categories)
+            {
+                int index = categories.ToList().IndexOf(category);
+                if (index >= 0)
+                {
+                    return index * 60.0;
+                }
+            }
+            return 0.0;
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
     }
 }

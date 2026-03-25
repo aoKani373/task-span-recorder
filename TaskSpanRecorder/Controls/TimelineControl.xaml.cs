@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Globalization;
 using System.Linq;
@@ -24,66 +25,80 @@ namespace TaskSpanRecorder.Controls
     /// </summary>
     public partial class TimelineControl : UserControl
     {
+        public ObservableCollection<TimeMark> TimeMarks { get; } = new();
+
         public TimelineControl()
         {
             InitializeComponent();
 
-            this.Loaded += (s, e) => AutoFitTimeline();
+            GenerateFixedTimeMarks();
 
-            this.DataContextChanged += TimelineControl_DataContextChanged;
+            this.Loaded += (s, e) => FocusCurrentTime();
         }
 
-
-        private void TimelineControl_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+        private void GenerateFixedTimeMarks()
         {
-            if (e.OldValue is MainViewModel oldVm)
+            TimeMarks.Clear();
+            for (int i = 0; i <= 86400; i += 900)
             {
-                oldVm.TaskSpans.CollectionChanged -= TaskSpans_CollectionChanged;
-            }
-            if (e.NewValue is MainViewModel newVm)
-            {
-                newVm.TaskSpans.CollectionChanged += TaskSpans_CollectionChanged;
+                bool isHour = i % 3600 == 0;
+                TimeMarks.Add(new TimeMark
+                {
+                    Seconds = i,
+                    Label = TimeSpan.FromSeconds(i).ToString(@"hh\:mm"),
+                    LineOpacity = isHour ? 0.6 : 0.2
+                });
             }
         }
 
-        private void TaskSpans_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        private void FocusCurrentTime()
         {
-            AutoFitTimeline();
+            if (TimelineScrollViewer.ViewportWidth == 0) return;
+
+            double targetDurationSeconds = 3600.0;
+            double newScale = TimelineScrollViewer.ViewportWidth / targetDurationSeconds;
+
+            TimelineScale.ScaleX = newScale;
+
+            double nowSeconds = DateTime.Now.TimeOfDay.TotalSeconds;
+            double targetScrollSeconds = nowSeconds - 1800;
+
+            if (targetScrollSeconds < 0) targetScrollSeconds = 0;
+
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                TimelineScrollViewer.ScrollToHorizontalOffset(targetScrollSeconds * newScale);
+            }), DispatcherPriority.Loaded);
         }
 
         private void TimelineScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            AutoFitTimeline();
+            FocusCurrentTime();
         }
 
-        private void AutoFitTimeline()
+        private void TimelineScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
-            if (DataContext is not MainViewModel vm || !vm.TaskSpans.Any() || TimelineScrollViewer.ViewportWidth == 0)
-                return;
-
-            double minSeconds = vm.TaskSpans.Min(t => t.StartSeconds);
-            double maxSeconds = vm.TaskSpans.Max(t => t.EndTime.HasValue
-                ? t.EndTime.Value.ToTimeSpan().TotalSeconds
-                : DateTime.Now.TimeOfDay.TotalSeconds);
-
-            double durationSeconds = maxSeconds - minSeconds;
-            if (durationSeconds <= 0) durationSeconds = 60;
-
-            double paddingFactor = 0.95;
-            double newScale = (TimelineScrollViewer.ViewportWidth * paddingFactor) / durationSeconds;
-
-            ZoomSlider.Value = newScale;
-
-            Dispatcher.BeginInvoke(new Action(() =>
+            if (e.Delta > 0)
             {
-                double leftPaddingOffset = TimelineScrollViewer.ViewportWidth * ((1.0 - paddingFactor) / 2.0);
-                double targetScrollPosition = (minSeconds * newScale) - leftPaddingOffset;
+                TimelineScrollViewer.LineLeft();
+                TimelineScrollViewer.LineLeft();
+            }
+            else
+            {
+                TimelineScrollViewer.LineRight();
+                TimelineScrollViewer.LineRight();
+            }
 
-                TimelineScrollViewer.ScrollToHorizontalOffset(targetScrollPosition);
-
-            }), DispatcherPriority.Loaded);
+            e.Handled = true;
         }
     }
+    public class TimeMark
+    {
+        public double Seconds { get; set; }
+        public string Label { get; set; } = string.Empty;
+        public double LineOpacity { get; set; }
+    }
+
     public class CategoryYConverter : IMultiValueConverter
     {
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
@@ -100,6 +115,21 @@ namespace TaskSpanRecorder.Controls
         }
 
         public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    public class InverseScaleConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is double scale && scale > 0)
+            {
+                return 1.0 / scale;
+            }
+            return 1.0;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
             => throw new NotImplementedException();
     }
 }

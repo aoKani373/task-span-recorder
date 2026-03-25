@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace TaskSpanRecorder.Models
 {
-    public class TaskSpan
+    public partial class TaskSpan : ObservableObject
     {
         public int Id { get; set; }
 
@@ -16,7 +17,8 @@ namespace TaskSpanRecorder.Models
 
         public TimeOnly StartTime { get; set; }
 
-        public TimeOnly? EndTime { get; set; } = null;
+        [ObservableProperty]
+        private TimeOnly? _endTime = null;
 
         public TaskCategory? TaskCategory { get; set; } = null;
     }

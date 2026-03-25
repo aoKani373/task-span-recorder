@@ -19,20 +19,34 @@
 
         <ui:TitleBar Grid.Row="0" Title="Task Span Recorder" />
 
-        <StackPanel Grid.Row="1">
-            <TextBlock Text="Task Category:" VerticalAlignment="Center" Margin="0,0,0,5"/>
+        <StackPanel Grid.Row="1" Margin="20,10">
+            <TextBlock Text="{Binding CurrentStatusText}" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,0,15"/>
+
+            <TextBlock Text="Task Categories:" FontWeight="SemiBold" Margin="0,0,0,5"/>
+
             <StackPanel Orientation="Horizontal">
                 <ComboBox
                     ItemsSource="{Binding TaskCategories}"
                     DisplayMemberPath="Name"
                     SelectedItem="{Binding SelectedTaskCategory}"
                     Width="200" Margin="0,0,10,0" />
-                <ui:Button
-                    Content="Add Task Category"
-                    Command="{Binding AddTaskCategoryCommand}"
-                    Appearance="Primary"/>
+                
+                <ui:Button Content="開始 / 切り替え" Icon="{ui:SymbolIcon Symbol=Play24}" Command="{Binding StartSelectedTaskCommand}" Appearance="Primary" Margin="0,0,10,0"/>
+
+                <ui:Button Content="休憩 / 中断" Icon="{ui:SymbolIcon Symbol=Pause24}" Command="{Binding SwitchToIdleCommand}" Appearance="Secondary" Margin="0,0,10,0"/>
+
+                <ui:Button Content="新規カテゴリ" Icon="{ui:SymbolIcon Symbol=Add24}" Command="{Binding AddTaskCategoryCommand}" Appearance="Transparent"/>
             </StackPanel>
         </StackPanel>
+
+        <ui:DataGrid Grid.Row="2" ItemsSource="{Binding TaskSpans}" AutoGenerateColumns="False" CanUserAddRows="False" Margin="0,15,0,0">
+            <ui:DataGrid.Columns>
+                <DataGridTextColumn Header="日付" Binding="{Binding Date, StringFormat=yyyy/MM/dd}" Width="100"/>
+                <DataGridTextColumn Header="カテゴリ" Binding="{Binding TaskCategory.Name}" Width="*"/>
+                <DataGridTextColumn Header="開始" Binding="{Binding StartTime, StringFormat=HH:mm:ss}" Width="100"/>
+                <DataGridTextColumn Header="終了" Binding="{Binding EndTime, StringFormat=HH:mm:ss}" Width="100"/>
+            </ui:DataGrid.Columns>
+        </ui:DataGrid>
 
         <ContentPresenter x:Name="RootContentDialogPresenter" Grid.RowSpan="3" />
     </Grid>

@@ -19,26 +19,68 @@ namespace TaskSpanRecorder.ViewModels
         public ObservableCollection<TaskCategory> TaskCategories { get; } = new();
         public ObservableCollection<TaskSpan> TaskSpans { get; } = new();
 
+        private readonly TaskCategory _idleCategory = new() { Id = 0, Name = "空き時間" };
+
         [ObservableProperty]
         private TaskCategory? _selectedTaskCategory;
+
+        [ObservableProperty]
+        private TaskSpan? _currentTaskSpan;
+
+        [ObservableProperty]
+        private string _currentStatusText = "待機中...";
 
         public MainViewModel(IContentDialogService contentDialogService)
         {
             _contentDialogService = contentDialogService;
+
+            TaskCategories.Add(_idleCategory);
+            TaskCategories.Add(new TaskCategory { Id = 1, Name = "開発" });
+            TaskCategories.Add(new TaskCategory { Id = 2, Name = "会議" });
+
+            SelectedTaskCategory = TaskCategories[1];
         }
 
         [RelayCommand]
-        private void StartTask()
+        private void StartSelectedTask()
         {
-            StopTask();
+            if (SelectedTaskCategory == null) return;
+            SwitchToCategory(SelectedTaskCategory);
+        }
 
+        [RelayCommand]
+        private void SwitchToIdle()
+        {
+            SwitchToCategory(_idleCategory);
+        }
+
+        private void SwitchToCategory(TaskCategory targetCategory)
+        {
+            if (CurrentTaskSpan?.TaskCategoryId == targetCategory.Id) return;
             
-        }
+            var now = DateTime.Now;
+            var currentDate = DateOnly.FromDateTime(now);
+            var currentTime = TimeOnly.FromDateTime(now);
 
-        [RelayCommand]
-        private void StopTask()
-        {
+            if (CurrentTaskSpan != null)
+            {
+                CurrentTaskSpan.EndTime = currentTime;
+                CurrentStatusText = $"終了: {CurrentTaskSpan.TaskCategory?.Name}";
+            }
+            var newTaskSpan = new TaskSpan
+            {
+                Id = TaskSpans.Count + 1,
+                TaskCategoryId = targetCategory.Id,
+                TaskCategory = targetCategory,
+                Date = currentDate,
+                StartTime = currentTime,
+                EndTime = null
+            };
 
+            TaskSpans.Add(newTaskSpan);
+            CurrentTaskSpan = newTaskSpan;
+
+            CurrentStatusText = $"実行中: {targetCategory.Name} (開始: {currentTime:HH:mm})";
         }
 
         [RelayCommand]

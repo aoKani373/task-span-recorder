@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:local="clr-namespace:TaskSpanRecorder"
+        xmlns:controls="clr-namespace:TaskSpanRecorder.Controls"
         mc:Ignorable="d"
         Title="MainWindow"
         Height="450" Width="800"
@@ -39,14 +40,7 @@
             </StackPanel>
         </StackPanel>
 
-        <ui:DataGrid Grid.Row="2" ItemsSource="{Binding TaskSpans}" AutoGenerateColumns="False" CanUserAddRows="False" Margin="0,15,0,0">
-            <ui:DataGrid.Columns>
-                <DataGridTextColumn Header="日付" Binding="{Binding Date, StringFormat=yyyy/MM/dd}" Width="100"/>
-                <DataGridTextColumn Header="カテゴリ" Binding="{Binding TaskCategory.Name}" Width="*"/>
-                <DataGridTextColumn Header="開始" Binding="{Binding StartTime, StringFormat=HH:mm:ss}" Width="100"/>
-                <DataGridTextColumn Header="終了" Binding="{Binding EndTime, StringFormat=HH:mm:ss}" Width="100"/>
-            </ui:DataGrid.Columns>
-        </ui:DataGrid>
+        <controls:TimelineControl Grid.Row="2" Margin="20,0,20,20" />
 
         <ContentPresenter x:Name="RootContentDialogPresenter" Grid.RowSpan="3" />
     </Grid>

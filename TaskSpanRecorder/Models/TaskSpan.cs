@@ -1,0 +1,68 @@
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace TaskSpanRecorder.Models
+{
+    public partial class TaskSpan : ObservableObject
+    {
+        public int Id { get; set; }
+        public int TaskCategoryId { get; set; }
+        public DateOnly Date { get; set; }
+
+        [ObservableProperty]
+        private TimeOnly _startTime;
+
+        [ObservableProperty]
+        private TimeOnly? _endTime = null;
+
+        public TaskCategory? TaskCategory { get; set; } = null;
+
+        public double StartSeconds
+        {
+            get
+            {
+                DateTime spanStart = Date.ToDateTime(StartTime);
+                return (spanStart - DateTime.Today).TotalSeconds;
+            }
+        }
+
+        public double DurationSeconds
+        {
+            get
+            {
+                DateTime spanStart = Date.ToDateTime(StartTime);
+                DateTime spanEnd;
+
+                if (EndTime.HasValue)
+                {
+                    spanEnd = Date.ToDateTime(EndTime.Value);
+                    
+                    if (spanEnd < spanStart)
+                    {
+                        spanEnd = spanEnd.AddDays(1);
+                    }
+                }
+                else
+                {
+                    spanEnd = DateTime.Now;
+                }
+
+                return (spanEnd - spanStart).TotalSeconds;
+            }
+        }
+
+        partial void OnStartTimeChanged(TimeOnly value)
+        {
+            OnPropertyChanged(nameof(StartSeconds));
+            OnPropertyChanged(nameof(DurationSeconds));
+        }
+        partial void OnEndTimeChanged(TimeOnly? value)
+        {
+            OnPropertyChanged(nameof(DurationSeconds));
+        }
+    }
+}

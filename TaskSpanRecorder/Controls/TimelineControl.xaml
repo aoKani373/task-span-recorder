@@ -1,0 +1,177 @@
+﻿<UserControl x:Class="TaskSpanRecorder.Controls.TimelineControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:local="clr-namespace:TaskSpanRecorder.Controls"
+             mc:Ignorable="d" 
+             d:DesignHeight="150" d:DesignWidth="800">
+    
+    <UserControl.Resources>
+        <local:CategoryYConverter x:Key="CategoryYConverter"/>
+        <local:InverseScaleConverter x:Key="InverseScaleConverter"/>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,10">
+            <TextBlock Text="本日のタイムライン (現在時刻の前後30分):" FontWeight="SemiBold" VerticalAlignment="Center"/>
+        </Grid>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="150"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Grid Grid.Column="0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="25"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" BorderBrush="{ui:ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="0,0,1,1"/>
+
+                    <ItemsControl Grid.Row="1" ItemsSource="{Binding TaskCategories}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Height="60" BorderBrush="{ui:ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="0,0,1,1" Padding="10,0">
+                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+
+                <ScrollViewer 
+                    Grid.Column="1" 
+                    x:Name="TimelineScrollViewer" 
+                    HorizontalScrollBarVisibility="Auto" 
+                    VerticalScrollBarVisibility="Disabled" 
+                    SizeChanged="TimelineScrollViewer_SizeChanged"
+                    PreviewMouseWheel="TimelineScrollViewer_PreviewMouseWheel">
+                    <Grid>
+                        <Grid.LayoutTransform>
+                            <ScaleTransform x:Name="TimelineScale" ScaleY="1" />
+                        </Grid.LayoutTransform>
+
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="25"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <ItemsControl Grid.Row="0" Grid.RowSpan="2" ItemsSource="{Binding TimeMarks, RelativeSource={RelativeSource AncestorType=UserControl}}" Width="86400">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Canvas />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemContainerStyle>
+                                <Style TargetType="ContentPresenter">
+                                    <Setter Property="Canvas.Left" Value="{Binding Seconds}" />
+                                </Style>
+                            </ItemsControl.ItemContainerStyle>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=ItemsControl}}">
+                                        <TextBlock Text="{Binding Label}" FontSize="11" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}" Margin="4,4,0,0" VerticalAlignment="Top" >
+                                            <TextBlock.LayoutTransform>
+                                                <ScaleTransform ScaleX="{Binding ScaleX, ElementName=TimelineScale, Converter={StaticResource InverseScaleConverter}}"/>
+                                            </TextBlock.LayoutTransform>
+                                        </TextBlock>
+                                        <Rectangle Width="1" Fill="{ui:ThemeResource TextFillColorDisabledBrush}" Opacity="{Binding LineOpacity}" HorizontalAlignment="Left" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <ItemsControl Grid.Row="1" ItemsSource="{Binding TaskCategories}" Width="86400">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Height="60" BorderBrush="{ui:ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="0,0,0,1" Background="#05000000"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <ItemsControl Grid.Row="1" ItemsSource="{Binding TaskSpans}" Width="86400">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Canvas />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+
+                            <ItemsControl.ItemContainerStyle>
+                                <Style TargetType="ContentPresenter">
+                                    <Setter Property="Canvas.Left" Value="{Binding StartSeconds}" />
+                                    <Setter Property="Canvas.Top">
+                                        <Setter.Value>
+                                            <MultiBinding Converter="{StaticResource CategoryYConverter}">
+                                                <Binding Path="TaskCategory" />
+                                                <Binding Path="DataContext.TaskCategories" RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                                            </MultiBinding>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ItemsControl.ItemContainerStyle>
+
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Width="{Binding DurationSeconds}" Height="50" Margin="0,5,0,5">
+                                        <Grid.ToolTip>
+                                            <ToolTip HasDropShadow="True">
+                                                <StackPanel Margin="8">
+                                                    <TextBlock Text="{Binding TaskCategory.Name}" FontSize="15" FontWeight="Bold" Margin="0,0,0,8"/>
+
+                                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                        <TextBlock Text="開始: " Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
+                                                        <TextBlock Text="{Binding StartTime, StringFormat={}{0:HH:mm:ss}}" FontWeight="SemiBold" />
+                                                    </StackPanel>
+
+                                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                        <TextBlock Text="終了: " Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
+                                                        <TextBlock Text="{Binding EndTime, StringFormat={}{0:HH:mm:ss}, TargetNullValue='(実行中...)'}" FontWeight="SemiBold"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </ToolTip>
+                                        </Grid.ToolTip>
+                                        
+                                        <Border Background="{ui:ThemeResource SystemAccentColorPrimaryBrush}" CornerRadius="4" Opacity="0.9" />
+                                        
+                                        <Thumb 
+                                            HorizontalAlignment="Left" 
+                                            Width="6" 
+                                            Cursor="SizeWE" 
+                                            Background="Transparent" 
+                                            DragDelta="Thumb_DragDelta" 
+                                            DragCompleted="Thumb_DragCompleted" >
+                                            <Thumb.LayoutTransform>
+                                                <ScaleTransform ScaleX="{Binding ScaleX, ElementName=TimelineScale, Converter={StaticResource InverseScaleConverter}}"/>
+                                            </Thumb.LayoutTransform>
+                                        </Thumb>
+                                        
+                                        <Thumb 
+                                            HorizontalAlignment="Right" 
+                                            Width="6" 
+                                            Cursor="SizeWE" 
+                                            Background="Transparent" 
+                                            DragDelta="Thumb_DragDelta" 
+                                            DragCompleted="Thumb_DragCompleted" >
+                                            <Thumb.LayoutTransform>
+                                                <ScaleTransform ScaleX="{Binding ScaleX, ElementName=TimelineScale, Converter={StaticResource InverseScaleConverter}}"/>
+                                            </Thumb.LayoutTransform>
+                                        </Thumb>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+                </ScrollViewer>
+            </Grid>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

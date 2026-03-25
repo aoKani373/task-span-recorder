@@ -102,7 +102,7 @@ namespace TaskSpanRecorder.Controls
 
             bool isLeftThumb = thumb.HorizontalAlignment == HorizontalAlignment.Left;
 
-            var orderedSpans = vm.TaskSpans.Where(t => t.Date == currentSpan.Date).OrderBy(t => t.StartTime).ToList();
+            var orderedSpans = vm.TaskSpans.OrderBy(t => t.Date.ToDateTime(t.StartTime)).ToList();
             int currentIndex = orderedSpans.IndexOf(currentSpan);
 
             TaskSpan? leftSpan = null;
@@ -121,26 +121,30 @@ namespace TaskSpanRecorder.Controls
 
             if (leftSpan == null && rightSpan == null) return;
 
-            double currentBoundarySeconds = rightSpan != null ? rightSpan.StartSeconds : leftSpan.EndTime.Value.ToTimeSpan().TotalSeconds;
+            double scale = TimelineScale.ScaleX;
+            if (scale == 0) return;
+            double deltaSeconds = e.HorizontalChange / scale;
 
-            double newBoundarySeconds = currentBoundarySeconds + e.HorizontalChange;
+            double currentBoundarySeconds = rightSpan != null
+                ? rightSpan.StartSeconds
+                : leftSpan!.StartSeconds + leftSpan.DurationSeconds;
 
-            double minSeconds = leftSpan != null ? leftSpan.StartSeconds + 60 : 0;
-            double maxSeconds = 86400;
-            if (rightSpan != null)
-            {
-                maxSeconds = rightSpan.EndTime.HasValue
-                    ? rightSpan.EndTime.Value.ToTimeSpan().TotalSeconds - 60
-                    : DateTime.Now.TimeOfDay.TotalSeconds - 60;
-            }
+            double newBoundarySeconds = currentBoundarySeconds + deltaSeconds;
 
-            if (newBoundarySeconds < minSeconds) newBoundarySeconds = minSeconds;
-            if (newBoundarySeconds > maxSeconds) newBoundarySeconds = maxSeconds;
+            double minSeconds = leftSpan != null ? leftSpan.StartSeconds : double.MinValue;
+            double maxSeconds = rightSpan != null
+                ? rightSpan.StartSeconds + rightSpan.DurationSeconds
+                : (DateTime.Now - DateTime.Today).TotalSeconds;
 
-            var newBoundaryTime = TimeOnly.FromTimeSpan(TimeSpan.FromSeconds(newBoundarySeconds));
+            if (newBoundarySeconds < minSeconds) newBoundarySeconds = minSeconds + 1;
+            if (newBoundarySeconds > maxSeconds) newBoundarySeconds = maxSeconds - 1;
 
-            if (leftSpan != null) leftSpan.EndTime = newBoundaryTime;
-            if (rightSpan != null) rightSpan.StartTime = newBoundaryTime;
+            
+            DateTime newBoundaryTime = DateTime.Today.AddSeconds(newBoundarySeconds);
+            var newTimeOnly= TimeOnly.FromDateTime(newBoundaryTime);
+
+            if (leftSpan != null) leftSpan.EndTime = newTimeOnly;
+            if (rightSpan != null) rightSpan.StartTime = newTimeOnly;
         }
 
         private void Thumb_DragCompleted(object sender, DragCompletedEventArgs e)

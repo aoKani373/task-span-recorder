@@ -21,9 +21,39 @@ namespace TaskSpanRecorder.Models
 
         public TaskCategory? TaskCategory { get; set; } = null;
 
-        public double StartSeconds => StartTime.ToTimeSpan().TotalSeconds;
+        public double StartSeconds
+        {
+            get
+            {
+                DateTime spanStart = Date.ToDateTime(StartTime);
+                return (spanStart - DateTime.Today).TotalSeconds;
+            }
+        }
 
-        public double DurationSeconds => ((EndTime ?? TimeOnly.FromDateTime(DateTime.Now)) - StartTime).TotalSeconds;
+        public double DurationSeconds
+        {
+            get
+            {
+                DateTime spanStart = Date.ToDateTime(StartTime);
+                DateTime spanEnd;
+
+                if (EndTime.HasValue)
+                {
+                    spanEnd = Date.ToDateTime(EndTime.Value);
+                    
+                    if (spanEnd < spanStart)
+                    {
+                        spanEnd = spanEnd.AddDays(1);
+                    }
+                }
+                else
+                {
+                    spanEnd = DateTime.Now;
+                }
+
+                return (spanEnd - spanStart).TotalSeconds;
+            }
+        }
 
         partial void OnStartTimeChanged(TimeOnly value)
         {

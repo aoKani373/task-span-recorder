@@ -22,7 +22,7 @@ namespace TaskSpanRecorder.ViewModels
         public ObservableCollection<TaskCategory> TaskCategories { get; } = new();
         public ObservableCollection<TaskSpan> TaskSpans { get; } = new();
 
-        private TaskCategory _idleCategory;
+        private TaskCategory _idleCategory = null!;
 
         [ObservableProperty]
         private TaskCategory? _selectedTaskCategory;

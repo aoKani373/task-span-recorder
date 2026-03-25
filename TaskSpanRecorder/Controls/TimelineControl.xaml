@@ -121,8 +121,27 @@
 
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid Width="{Binding DurationSeconds}" Height="50" Margin="0,5,0,5" ToolTip="{Binding TaskCategory.Name}">
-                                        <Border Background="{DynamicResource SystemAccentColorPrimaryBrush}" CornerRadius="4" Opacity="0.9" />
+                                    <Grid Width="{Binding DurationSeconds}" Height="50" Margin="0,5,0,5">
+                                        <Grid.ToolTip>
+                                            <ToolTip HasDropShadow="True">
+                                                <StackPanel Margin="8">
+                                                    <TextBlock Text="{Binding TaskCategory.Name}" FontSize="15" FontWeight="Bold" Margin="0,0,0,8"/>
+
+                                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                        <TextBlock Text="開始: " Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
+                                                        <TextBlock Text="{Binding StartTime, StringFormat={}{0:HH:mm:ss}}" FontWeight="SemiBold" />
+                                                    </StackPanel>
+
+                                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                        <TextBlock Text="終了: " Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
+                                                        <TextBlock Text="{Binding EndTime, StringFormat={}{0:HH:mm:ss}, TargetNullValue='(実行中...)'}" FontWeight="SemiBold"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </ToolTip>
+                                        </Grid.ToolTip>
+                                        
+                                        <Border Background="{ui:ThemeResource SystemAccentColorPrimaryBrush}" CornerRadius="4" Opacity="0.9" />
+                                        
                                         <Thumb 
                                             HorizontalAlignment="Left" 
                                             Width="6" 
@@ -134,6 +153,7 @@
                                                 <ScaleTransform ScaleX="{Binding ScaleX, ElementName=TimelineScale, Converter={StaticResource InverseScaleConverter}}"/>
                                             </Thumb.LayoutTransform>
                                         </Thumb>
+                                        
                                         <Thumb 
                                             HorizontalAlignment="Right" 
                                             Width="6" 

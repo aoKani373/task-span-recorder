@@ -6,20 +6,44 @@
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:local="clr-namespace:TaskSpanRecorder.Controls"
              mc:Ignorable="d" 
-             d:DesignHeight="100" d:DesignWidth="800">
+             d:DesignHeight="150" d:DesignWidth="800">
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="60" />
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="85"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Text="Timeline Control" FontWeight="SemiBold" Margin="0,0,0,5" />
+        <Grid Grid.Row="0" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
 
-        <Viewbox Grid.Row="1" Stretch="Fill">
-            <ItemsControl ItemsSource="{Binding TaskSpans}" Width="86400" Height="60">
+            <TextBlock Text="本日のタイムライン:" FontWeight="SemiBold" VerticalAlignment="Center"/>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="縮小" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="12"/>
+                <Slider x:Name="ZoomSlider" Minimum="0.005" Maximum="1" Value="0.01" Width="150" VerticalAlignment="Center"/>
+                <TextBlock Text="拡大" VerticalAlignment="Center" Margin="5,0,0,0" FontSize="12"/>
+            </StackPanel>
+        </Grid>
+
+        <ScrollViewer
+            x:Name="TimelineScrollViewer"
+            Grid.Row="1"
+            HorizontalScrollBarVisibility="Auto"
+            VerticalScrollBarVisibility="Disabled"
+            SizeChanged="TimeLineScrollViewer_SizeChanged">
+
+            <ItemsControl ItemsSource="{Binding TaskSpans}" Width="86400" Height="60" VerticalAlignment="Top">
+
+                <ItemsControl.LayoutTransform>
+                    <ScaleTransform ScaleX="{Binding ElementName=ZoomSlider, Path=Value}" ScaleY="1" />
+                </ItemsControl.LayoutTransform>
+
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <Canvas Background="#1A000000"/>
+                        <Canvas Background="#1A000000" />
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
 
@@ -31,25 +55,24 @@
 
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border
-                            Width="{Binding DurationSeconds}"
-                            Height="60"
-                            Background="{ui:ThemeResource SystemAccentColorPrimaryBrush}"
-                            BorderBrush="{ui:ThemeResource ApplicationBackgroundBrush}"
-                            BorderThickness="1,0,1,0"
-                            CornerRadius="2"
-                            ToolTip="{Binding TaskCategory.Name}">
-                            <TextBlock 
-                                Text="{Binding TaskCategory.Name}" 
-                                Foreground="White" 
-                                VerticalAlignment="Center" 
-                                HorizontalAlignment="Center"
-                                FontSize="16"
-                                TextTrimming="CharacterEllipsis"/>
+                        <Border Width="{Binding DurationSeconds}" 
+                                Height="60" 
+                                Background="{ui:ThemeResource SystemAccentColorPrimaryBrush}" 
+                                BorderBrush="{ui:ThemeResource ApplicationBackgroundBrush}" 
+                                BorderThickness="1,0,1,0"
+                                CornerRadius="2"
+                                ToolTip="{Binding TaskCategory.Name}">
+                            <TextBlock Text="{Binding TaskCategory.Name}" 
+                                       Foreground="White" 
+                                       VerticalAlignment="Center" 
+                                       HorizontalAlignment="Center"
+                                       FontSize="16"
+                                       TextTrimming="CharacterEllipsis"/>
                         </Border>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
-        </Viewbox>
+
+        </ScrollViewer>
     </Grid>
 </UserControl>

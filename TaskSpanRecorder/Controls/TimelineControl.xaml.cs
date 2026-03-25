@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
@@ -16,6 +17,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using TaskSpanRecorder.Models;
 using TaskSpanRecorder.ViewModels;
 
 namespace TaskSpanRecorder.Controls
@@ -90,6 +92,63 @@ namespace TaskSpanRecorder.Controls
             }
 
             e.Handled = true;
+        }
+
+        private void Thumb_DragDelta(object sender, DragDeltaEventArgs e)
+        {
+            if (sender is not Thumb thumb ||
+                thumb.DataContext is not Models.TaskSpan currentSpan ||
+                this.DataContext is not MainViewModel vm) return;
+
+            bool isLeftThumb = thumb.HorizontalAlignment == HorizontalAlignment.Left;
+
+            var orderedSpans = vm.TaskSpans.Where(t => t.Date == currentSpan.Date).OrderBy(t => t.StartTime).ToList();
+            int currentIndex = orderedSpans.IndexOf(currentSpan);
+
+            TaskSpan? leftSpan = null;
+            TaskSpan? rightSpan = null;
+
+            if (isLeftThumb)
+            {
+                rightSpan = currentSpan;
+                leftSpan = currentIndex > 0 ? orderedSpans[currentIndex - 1] : null;
+            }
+            else
+            {
+                leftSpan = currentSpan;
+                rightSpan = currentIndex < orderedSpans.Count - 1 ? orderedSpans[currentIndex + 1] : null;
+            }
+
+            if (leftSpan == null && rightSpan == null) return;
+
+            double currentBoundarySeconds = rightSpan != null ? rightSpan.StartSeconds : leftSpan.EndTime.Value.ToTimeSpan().TotalSeconds;
+
+            double newBoundarySeconds = currentBoundarySeconds + e.HorizontalChange;
+
+            double minSeconds = leftSpan != null ? leftSpan.StartSeconds + 60 : 0;
+            double maxSeconds = 86400;
+            if (rightSpan != null)
+            {
+                maxSeconds = rightSpan.EndTime.HasValue
+                    ? rightSpan.EndTime.Value.ToTimeSpan().TotalSeconds - 60
+                    : DateTime.Now.TimeOfDay.TotalSeconds - 60;
+            }
+
+            if (newBoundarySeconds < minSeconds) newBoundarySeconds = minSeconds;
+            if (newBoundarySeconds > maxSeconds) newBoundarySeconds = maxSeconds;
+
+            var newBoundaryTime = TimeOnly.FromTimeSpan(TimeSpan.FromSeconds(newBoundarySeconds));
+
+            if (leftSpan != null) leftSpan.EndTime = newBoundaryTime;
+            if (rightSpan != null) rightSpan.StartTime = newBoundaryTime;
+        }
+
+        private void Thumb_DragCompleted(object sender, DragCompletedEventArgs e)
+        {
+            if (this.DataContext is MainViewModel vm)
+            {
+                vm.SaveChanges();
+            }
         }
     }
     public class TimeMark

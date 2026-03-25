@@ -140,5 +140,10 @@ namespace TaskSpanRecorder.ViewModels
                 SelectedTaskCategory = newCategory;
             }
         }
+
+        public void SaveChanges()
+        {
+            _dbContext.SaveChanges();
+        }
     }
 }

@@ -12,7 +12,9 @@ namespace TaskSpanRecorder.Models
         public int Id { get; set; }
         public int TaskCategoryId { get; set; }
         public DateOnly Date { get; set; }
-        public TimeOnly StartTime { get; set; }
+
+        [ObservableProperty]
+        private TimeOnly _startTime;
 
         [ObservableProperty]
         private TimeOnly? _endTime = null;
@@ -23,6 +25,11 @@ namespace TaskSpanRecorder.Models
 
         public double DurationSeconds => ((EndTime ?? TimeOnly.FromDateTime(DateTime.Now)) - StartTime).TotalSeconds;
 
+        partial void OnStartTimeChanged(TimeOnly value)
+        {
+            OnPropertyChanged(nameof(StartSeconds));
+            OnPropertyChanged(nameof(DurationSeconds));
+        }
         partial void OnEndTimeChanged(TimeOnly? value)
         {
             OnPropertyChanged(nameof(DurationSeconds));

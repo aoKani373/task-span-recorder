@@ -123,8 +123,28 @@
                                 <DataTemplate>
                                     <Grid Width="{Binding DurationSeconds}" Height="50" Margin="0,5,0,5" ToolTip="{Binding TaskCategory.Name}">
                                         <Border Background="{DynamicResource SystemAccentColorPrimaryBrush}" CornerRadius="4" Opacity="0.9" />
-                                        <Thumb HorizontalAlignment="Left" Width="6" Cursor="SizeWE" Opacity="0.01" />
-                                        <Thumb HorizontalAlignment="Right" Width="6" Cursor="SizeWE" Opacity="0.01" />
+                                        <Thumb 
+                                            HorizontalAlignment="Left" 
+                                            Width="6" 
+                                            Cursor="SizeWE" 
+                                            Background="Transparent" 
+                                            DragDelta="Thumb_DragDelta" 
+                                            DragCompleted="Thumb_DragCompleted" >
+                                            <Thumb.LayoutTransform>
+                                                <ScaleTransform ScaleX="{Binding ScaleX, ElementName=TimelineScale, Converter={StaticResource InverseScaleConverter}}"/>
+                                            </Thumb.LayoutTransform>
+                                        </Thumb>
+                                        <Thumb 
+                                            HorizontalAlignment="Right" 
+                                            Width="6" 
+                                            Cursor="SizeWE" 
+                                            Background="Transparent" 
+                                            DragDelta="Thumb_DragDelta" 
+                                            DragCompleted="Thumb_DragCompleted" >
+                                            <Thumb.LayoutTransform>
+                                                <ScaleTransform ScaleX="{Binding ScaleX, ElementName=TimelineScale, Converter={StaticResource InverseScaleConverter}}"/>
+                                            </Thumb.LayoutTransform>
+                                        </Thumb>
                                     </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>

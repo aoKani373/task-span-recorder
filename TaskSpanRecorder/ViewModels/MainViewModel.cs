@@ -1,11 +1,13 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TaskSpanRecorder.Data;
 using TaskSpanRecorder.Models;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
@@ -15,11 +17,12 @@ namespace TaskSpanRecorder.ViewModels
     public partial class MainViewModel : ObservableObject
     {
         private readonly IContentDialogService _contentDialogService;
+        private readonly AppDbContext _dbContext;
 
         public ObservableCollection<TaskCategory> TaskCategories { get; } = new();
         public ObservableCollection<TaskSpan> TaskSpans { get; } = new();
 
-        private readonly TaskCategory _idleCategory = new() { Id = 0, Name = "空き時間" };
+        private TaskCategory _idleCategory;
 
         [ObservableProperty]
         private TaskCategory? _selectedTaskCategory;
@@ -34,11 +37,10 @@ namespace TaskSpanRecorder.ViewModels
         {
             _contentDialogService = contentDialogService;
 
-            TaskCategories.Add(_idleCategory);
-            TaskCategories.Add(new TaskCategory { Id = 1, Name = "開発" });
-            TaskCategories.Add(new TaskCategory { Id = 2, Name = "会議" });
+            _dbContext = new AppDbContext();
+            _dbContext.Database.EnsureCreated();
 
-            SelectedTaskCategory = TaskCategories[1];
+            LoadData();
         }
 
         [RelayCommand]
@@ -52,6 +54,30 @@ namespace TaskSpanRecorder.ViewModels
         private void SwitchToIdle()
         {
             SwitchToCategory(_idleCategory);
+        }
+
+        private void LoadData()
+        {
+            var categories = _dbContext.TaskCategories.ToList();
+            foreach (var c in categories)
+            {
+                TaskCategories.Add(c);
+            }
+
+            _idleCategory = TaskCategories.First(c => c.Id == -1);
+            SelectedTaskCategory = TaskCategories.FirstOrDefault(c => c.Id == 1);
+
+            var spans = _dbContext.TaskSpans.Include(ts => ts.TaskCategory).ToList();
+            foreach (var s in spans)
+            {
+                TaskSpans.Add(s);
+            }
+
+            CurrentTaskSpan = TaskSpans.LastOrDefault(ts => ts.EndTime == null);
+            if (CurrentTaskSpan != null)
+            {
+                CurrentStatusText = $"実行中: {CurrentTaskSpan.TaskCategory?.Name} (開始: {CurrentTaskSpan.StartTime:HH:mm})";
+            }
         }
 
         private void SwitchToCategory(TaskCategory targetCategory)
@@ -69,13 +95,14 @@ namespace TaskSpanRecorder.ViewModels
             }
             var newTaskSpan = new TaskSpan
             {
-                Id = TaskSpans.Count + 1,
                 TaskCategoryId = targetCategory.Id,
-                TaskCategory = targetCategory,
                 Date = currentDate,
                 StartTime = currentTime,
                 EndTime = null
             };
+
+            _dbContext.TaskSpans.Add(newTaskSpan);
+            _dbContext.SaveChanges();
 
             TaskSpans.Add(newTaskSpan);
             CurrentTaskSpan = newTaskSpan;
@@ -104,8 +131,10 @@ namespace TaskSpanRecorder.ViewModels
 
             if (result == ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(textBox.Text))
             {
-                int nextId = TaskCategories.Count > 0 ? TaskCategories.Max(c => c.Id) + 1 : 1;
-                var newCategory = new TaskCategory { Id = nextId, Name = textBox.Text };
+                var newCategory = new TaskCategory { Name = textBox.Text };
+
+                _dbContext.TaskCategories.Add(newCategory);
+                _dbContext.SaveChanges();
 
                 TaskCategories.Add(newCategory);
                 SelectedTaskCategory = newCategory;

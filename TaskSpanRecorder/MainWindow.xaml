@@ -1,12 +1,39 @@
-﻿<Window x:Class="TaskSpanRecorder.MainWindow"
+﻿<ui:FluentWindow x:Class="TaskSpanRecorder.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:local="clr-namespace:TaskSpanRecorder"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="MainWindow"
+        Height="450" Width="800"
+        ExtendsContentIntoTitleBar="True"
+        WindowBackdropType="Mica">
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
 
+        <ui:TitleBar Grid.Row="0" Title="Task Span Recorder" />
+
+        <StackPanel Grid.Row="1">
+            <TextBlock Text="Task Category:" VerticalAlignment="Center" Margin="0,0,0,5"/>
+            <StackPanel Orientation="Horizontal">
+                <ComboBox
+                    ItemsSource="{Binding TaskCategories}"
+                    DisplayMemberPath="Name"
+                    SelectedItem="{Binding SelectedTaskCategory}"
+                    Width="200" Margin="0,0,10,0" />
+                <ui:Button
+                    Content="Add Task Category"
+                    Command="{Binding AddTaskCategoryCommand}"
+                    Appearance="Primary"/>
+            </StackPanel>
+        </StackPanel>
+
+        <ContentPresenter x:Name="RootContentDialogPresenter" Grid.RowSpan="3" />
     </Grid>
-</Window>
+</ui:FluentWindow>

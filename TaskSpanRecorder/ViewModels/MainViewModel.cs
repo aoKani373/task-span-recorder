@@ -1,11 +1,16 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using LiveChartsCore;
+using LiveChartsCore.SkiaSharpView;
+using LiveChartsCore.SkiaSharpView.Painting;
 using Microsoft.EntityFrameworkCore;
+using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using TaskSpanRecorder.Data;
 using TaskSpanRecorder.Models;
@@ -22,6 +27,8 @@ namespace TaskSpanRecorder.ViewModels
         public ObservableCollection<TaskCategory> TaskCategories { get; } = new();
         public ObservableCollection<TaskSpan> TaskSpans { get; } = new();
 
+        public ObservableCollection<ISeries> CategoryPieSeries { get; } = new();
+
         private TaskCategory _idleCategory = null!;
 
         [ObservableProperty]
@@ -32,6 +39,15 @@ namespace TaskSpanRecorder.ViewModels
 
         [ObservableProperty]
         private string _currentStatusText = "待機中...";
+
+        [ObservableProperty]
+        private DateTime _startDate = DateTime.Today;
+
+        [ObservableProperty]
+        private DateTime _endDate = DateTime.Today;
+
+        partial void OnStartDateChanged(DateTime value) => UpdateAggregation();
+        partial void OnEndDateChanged(DateTime value) => UpdateAggregation();
 
         public MainViewModel(IContentDialogService contentDialogService)
         {
@@ -78,6 +94,8 @@ namespace TaskSpanRecorder.ViewModels
             {
                 CurrentStatusText = $"実行中: {CurrentTaskSpan.TaskCategory?.Name} (開始: {CurrentTaskSpan.StartTime:HH:mm})";
             }
+
+            UpdateAggregation();
         }
 
         private void SwitchToCategory(TaskCategory targetCategory)
@@ -144,6 +162,43 @@ namespace TaskSpanRecorder.ViewModels
         public void SaveChanges()
         {
             _dbContext.SaveChanges();
+        }
+
+        [RelayCommand]
+        public void UpdateAggregation()
+        {
+            CategoryPieSeries.Clear();
+
+            var start = DateOnly.FromDateTime(StartDate);
+            var end = DateOnly.FromDateTime(EndDate);
+
+            var targetSpans = TaskSpans.Where(ts => ts.Date >= start && ts.Date <= end && ts.TaskCategoryId != -1);
+
+            var grouped = targetSpans.GroupBy(ts => ts.TaskCategory?.Name ?? "不明")
+                .Select(g => new
+                {
+                    CategoryName = g.Key,
+                    TotalHours = g.Sum(ts => ts.DurationSeconds) / 3600.0
+                })
+                .Where(g => g.TotalHours > 0)
+                .ToList();
+
+            var jpTypeface = SKTypeface.FromFamilyName("Yu Gothic UI");
+
+            foreach (var item in grouped)
+            {
+                string cleanName = Regex.Replace(item.CategoryName, @"\p{Cs}|\p{So}", "").Trim();
+
+                CategoryPieSeries.Add(new PieSeries<double>
+                {
+                    Name = cleanName,
+                    Values = new[] { item.TotalHours },
+                    DataLabelsFormatter = point => $"{cleanName} ({point.Model:F1} h)",
+                    DataLabelsPosition = LiveChartsCore.Measure.PolarLabelsPosition.Middle,
+                    DataLabelsPaint = new SolidColorPaint(SKColors.White) { SKTypeface = jpTypeface },
+                    ToolTipLabelFormatter = point => $"{point.Model:F2} 時間"
+                });
+            }
         }
     }
 }

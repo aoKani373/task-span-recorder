@@ -1,4 +1,7 @@
-﻿using System.Text;
+﻿using LiveChartsCore;
+using LiveChartsCore.SkiaSharpView;
+using SkiaSharp;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -8,10 +11,10 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
-using Wpf.Ui;
 using TaskSpanRecorder.ViewModels;
-using Wpf.Ui.Controls;
+using Wpf.Ui;
 using Wpf.Ui.Appearance;
+using Wpf.Ui.Controls;
 
 namespace TaskSpanRecorder
 {
@@ -22,6 +25,14 @@ namespace TaskSpanRecorder
     {
         public MainWindow()
         {
+            LiveCharts.Configure(config =>
+                config
+                    .AddSkiaSharp()
+                    .AddDefaultMappers()
+                    .AddDarkTheme()
+                    .HasGlobalSKTypeface(SKTypeface.FromFamilyName("Yu Gothic UI"))
+            );
+
             SystemThemeWatcher.Watch(this);
             InitializeComponent();
 

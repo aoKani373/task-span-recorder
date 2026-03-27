@@ -12,20 +12,33 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
 using TaskSpanRecorder.Data;
 using TaskSpanRecorder.Models;
-using Wpf.Ui;
-using Wpf.Ui.Controls;
 
 namespace TaskSpanRecorder.ViewModels
 {
+    public record PredefinedColor(string Name, string Hex);
+
     public partial class MainViewModel : ObservableObject
     {
-        private readonly IContentDialogService _contentDialogService;
+        private readonly Wpf.Ui.IContentDialogService _contentDialogService;
         private readonly AppDbContext _dbContext;
 
         public ObservableCollection<TaskCategory> TaskCategories { get; } = new();
         public ObservableCollection<TaskSpan> TaskSpans { get; } = new();
+        public ObservableCollection<TaskGroup> TaskGroups { get; } = new();
+
+        public List<PredefinedColor> AvailableColors { get; } = new()
+        {
+            new("Blue", "#FF0078D7"),
+            new("Green", "#FF107C10"),
+            new("Orange", "#FFD2691E"),
+            new("Red", "#FFE81123"),
+            new("Purple", "#FF881798"),
+            new("Gray", "#FF808080")
+        };
 
         public ObservableCollection<ISeries> CategoryPieSeries { get; } = new();
 
@@ -49,7 +62,7 @@ namespace TaskSpanRecorder.ViewModels
         partial void OnStartDateChanged(DateTime value) => UpdateAggregation();
         partial void OnEndDateChanged(DateTime value) => UpdateAggregation();
 
-        public MainViewModel(IContentDialogService contentDialogService)
+        public MainViewModel(Wpf.Ui.IContentDialogService contentDialogService)
         {
             _contentDialogService = contentDialogService;
 
@@ -74,6 +87,12 @@ namespace TaskSpanRecorder.ViewModels
 
         private void LoadData()
         {
+            var groups = _dbContext.TaskGroups.ToList();
+            foreach (var g in groups)
+            {
+                TaskGroups.Add(g);
+            }
+
             var categories = _dbContext.TaskCategories.ToList();
             foreach (var c in categories)
             {
@@ -105,7 +124,7 @@ namespace TaskSpanRecorder.ViewModels
         private void SwitchToCategory(TaskCategory targetCategory)
         {
             if (CurrentTaskSpan?.TaskCategoryId == targetCategory.Id) return;
-            
+
             var now = DateTime.Now;
             var currentDate = DateOnly.FromDateTime(now);
             var currentTime = TimeOnly.FromDateTime(now);
@@ -135,25 +154,50 @@ namespace TaskSpanRecorder.ViewModels
         [RelayCommand]
         private async Task AddTaskCategoryAsync()
         {
-            var textBox = new Wpf.Ui.Controls.TextBox
+            var panel = new StackPanel();
+
+            var nameTextBox = new Wpf.Ui.Controls.TextBox
             {
                 PlaceholderText = "新しいカテゴリ名を入力"
             };
 
-            var dialog = new ContentDialog
+            var groupLabel = new TextBlock
+            {
+                Text = "グループ (任意)",
+                Margin = new Thickness(0, 0, 0, 5)
+            };
+            var groupComboBox = new ComboBox
+            {
+                ItemsSource = TaskGroups,
+                DisplayMemberPath = "Name",
+                SelectedIndex = 0,
+                HorizontalAlignment = HorizontalAlignment.Stretch
+            };
+
+            panel.Children.Add(nameTextBox);
+            panel.Children.Add(groupLabel);
+            panel.Children.Add(groupComboBox);
+
+            var dialog = new Wpf.Ui.Controls.ContentDialog
             {
                 Title = "カテゴリの追加",
-                Content = textBox,
+                Content = panel,
                 PrimaryButtonText = "追加",
                 CloseButtonText = "キャンセル",
-                DefaultButton = ContentDialogButton.Primary
+                DefaultButton = Wpf.Ui.Controls.ContentDialogButton.Primary
             };
 
             var result = await _contentDialogService.ShowAsync(dialog, default);
 
-            if (result == ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(textBox.Text))
+            if (result == Wpf.Ui.Controls.ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(nameTextBox.Text))
             {
-                var newCategory = new TaskCategory { Name = textBox.Text };
+                var selectedGroup = groupComboBox.SelectedItem as TaskGroup;
+                var newCategory = new TaskCategory
+                {
+                    Name = nameTextBox.Text,
+                    TaskGroupId = selectedGroup?.Id,
+                    TaskGroup = selectedGroup
+                };
 
                 _dbContext.TaskCategories.Add(newCategory);
                 _dbContext.SaveChanges();
@@ -202,6 +246,61 @@ namespace TaskSpanRecorder.ViewModels
                     DataLabelsPaint = new SolidColorPaint(SKColors.White) { SKTypeface = jpTypeface },
                     ToolTipLabelFormatter = point => $"{point.Model:F2} 時間"
                 });
+            }
+        }
+
+        [RelayCommand]
+        private async Task AddTaskGroupAsync()
+        {
+            var panel = new StackPanel();
+            var nameTextBox = new Wpf.Ui.Controls.TextBox
+            {
+                PlaceholderText = "新しいグループ名を入力"
+            };
+
+            var colorLabel = new TextBlock
+            {
+                Text = "色",
+                Margin = new Thickness(0, 0, 0, 5)
+            };
+            var colorComboBox = new ComboBox
+            {
+                ItemsSource = AvailableColors,
+                DisplayMemberPath = "Name",
+                SelectedIndex = 0,
+                HorizontalAlignment = HorizontalAlignment.Stretch
+            };
+
+            panel.Children.Add(nameTextBox);
+            panel.Children.Add(colorLabel);
+            panel.Children.Add(colorComboBox);
+
+            var dialog = new Wpf.Ui.Controls.ContentDialog
+            {
+                Title = "グループの追加",
+                Content = panel,
+                PrimaryButtonText = "追加",
+                CloseButtonText = "キャンセル",
+                DefaultButton = Wpf.Ui.Controls.ContentDialogButton.Primary
+            };
+
+            var result = await _contentDialogService.ShowAsync(dialog, default);
+
+            if (result == Wpf.Ui.Controls.ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(nameTextBox.Text))
+            {
+                var selectedColor = colorComboBox.SelectedItem as PredefinedColor;
+                var newGroup = new TaskGroup
+                {
+                    Name = nameTextBox.Text,
+                    ColorHex = selectedColor?.Hex ?? "#FF808080"
+                };
+
+                _dbContext.TaskGroups.Add(newGroup);
+                _dbContext.SaveChanges();
+
+                TaskGroups.Add(newGroup);
+
+                await AddTaskCategoryAsync();
             }
         }
     }

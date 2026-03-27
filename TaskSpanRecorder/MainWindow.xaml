@@ -37,7 +37,9 @@
 
                 <ui:Button Content="休憩 / 中断" Icon="{ui:SymbolIcon Symbol=Pause24}" Command="{Binding SwitchToIdleCommand}" Appearance="Secondary" Margin="0,0,10,0"/>
 
-                <ui:Button Content="新規カテゴリ" Icon="{ui:SymbolIcon Symbol=Add24}" Command="{Binding AddTaskCategoryCommand}" Appearance="Transparent"/>
+                <ui:Button Content="新規カテゴリ" Icon="{ui:SymbolIcon Symbol=Add24}" Command="{Binding AddTaskCategoryCommand}" Appearance="Transparent" Margin="0,0,10,0"/>
+
+                <ui:Button Content="新規グループ" Icon="{ui:SymbolIcon Symbol=Add24}" Command="{Binding AddTaskGroupCommand}" Appearance="Transparent"/>
             </StackPanel>
         </StackPanel>
 

@@ -303,5 +303,71 @@ namespace TaskSpanRecorder.ViewModels
                 await AddTaskCategoryAsync();
             }
         }
+
+        [RelayCommand]
+        private async Task EditSelectedCategoryAsync()
+        {
+            if (SelectedTaskCategory == null || SelectedTaskCategory.Id == -1)
+            {
+                return;
+            }
+
+            var panel = new StackPanel();
+
+            var nameLabel = new TextBlock { Text = "カテゴリ名:", Margin = new Thickness(0, 0, 0, 5) };
+            var nameTextBox = new Wpf.Ui.Controls.TextBox { Text = SelectedTaskCategory.Name, Margin = new Thickness(0, 0, 0, 15) };
+
+            var groupLabel = new TextBlock { Text = "所属するグループ (色):", Margin = new Thickness(0, 0, 0, 5) };
+            var groupComboBox = new ComboBox
+            {
+                ItemsSource = TaskGroups,
+                DisplayMemberPath = "Name",
+                SelectedItem = TaskGroups.FirstOrDefault(g => g.Id == SelectedTaskCategory.TaskGroupId),
+                HorizontalAlignment = HorizontalAlignment.Stretch
+            };
+
+            panel.Children.Add(nameLabel);
+            panel.Children.Add(nameTextBox);
+            panel.Children.Add(groupLabel);
+            panel.Children.Add(groupComboBox);
+
+            var dialog = new Wpf.Ui.Controls.ContentDialog
+            {
+                Title = "カテゴリの編集",
+                Content = panel,
+                PrimaryButtonText = "保存",
+                CloseButtonText = "キャンセル",
+                DefaultButton = Wpf.Ui.Controls.ContentDialogButton.Primary
+            };
+
+            var result = await _contentDialogService.ShowAsync(dialog, default);
+
+            if (result == Wpf.Ui.Controls.ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(nameTextBox.Text))
+            {
+                var selectedGroup = groupComboBox.SelectedItem as TaskGroup;
+
+                SelectedTaskCategory.Name = nameTextBox.Text;
+                SelectedTaskCategory.TaskGroupId = selectedGroup?.Id;
+                SelectedTaskCategory.TaskGroup = selectedGroup;
+
+                _dbContext.SaveChanges();
+
+                int index = TaskCategories.IndexOf(SelectedTaskCategory);
+                if (index >= 0)
+                {
+                    TaskCategories[index] = SelectedTaskCategory;
+                    SelectedTaskCategory = TaskCategories[index];
+                }
+
+                var currentSpans = TaskSpans.ToList();
+                TaskSpans.Clear();
+                foreach (var span in currentSpans)
+                {
+                    TaskSpans.Add(span);
+                }
+
+                UpdateAggregation();
+            }
+        }
     }
 }

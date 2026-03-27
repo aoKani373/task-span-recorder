@@ -32,7 +32,9 @@
                     DisplayMemberPath="Name"
                     SelectedItem="{Binding SelectedTaskCategory}"
                     Width="200" Margin="0,0,10,0" />
-                
+
+                <ui:Button Content="編集" Icon="{ui:SymbolIcon Symbol=Edit24}" Command="{Binding EditSelectedCategoryCommand}" Appearance="Transparent" Margin="0,0,10,0"/>
+
                 <ui:Button Content="開始 / 切り替え" Icon="{ui:SymbolIcon Symbol=Play24}" Command="{Binding StartSelectedTaskCommand}" Appearance="Primary" Margin="0,0,10,0"/>
 
                 <ui:Button Content="休憩 / 中断" Icon="{ui:SymbolIcon Symbol=Pause24}" Command="{Binding SwitchToIdleCommand}" Appearance="Secondary" Margin="0,0,10,0"/>

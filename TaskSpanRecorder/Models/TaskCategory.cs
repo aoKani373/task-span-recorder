@@ -11,5 +11,9 @@ namespace TaskSpanRecorder.Models
         public int Id { get; set; }
 
         public string Name { get; set; } = string.Empty;
+
+        public int? TaskGroupId { get; set; }
+
+        public TaskGroup? TaskGroup { get; set; }
     }
 }

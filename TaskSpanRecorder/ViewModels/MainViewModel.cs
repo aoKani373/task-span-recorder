@@ -83,7 +83,11 @@ namespace TaskSpanRecorder.ViewModels
             _idleCategory = TaskCategories.First(c => c.Id == -1);
             SelectedTaskCategory = TaskCategories.FirstOrDefault(c => c.Id == 1);
 
-            var spans = _dbContext.TaskSpans.Include(ts => ts.TaskCategory).ToList();
+            var spans = _dbContext.TaskSpans
+                .Include(ts => ts.TaskCategory)
+                .ThenInclude(tc => tc.TaskGroup)
+                .ToList();
+
             foreach (var s in spans)
             {
                 TaskSpans.Add(s);

@@ -1,26 +1,46 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using LiveChartsCore;
+using LiveChartsCore.SkiaSharpView;
+using LiveChartsCore.SkiaSharpView.Painting;
 using Microsoft.EntityFrameworkCore;
+using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
 using TaskSpanRecorder.Data;
 using TaskSpanRecorder.Models;
-using Wpf.Ui;
-using Wpf.Ui.Controls;
 
 namespace TaskSpanRecorder.ViewModels
 {
+    public record PredefinedColor(string Name, string Hex);
+
     public partial class MainViewModel : ObservableObject
     {
-        private readonly IContentDialogService _contentDialogService;
+        private readonly Wpf.Ui.IContentDialogService _contentDialogService;
         private readonly AppDbContext _dbContext;
 
         public ObservableCollection<TaskCategory> TaskCategories { get; } = new();
         public ObservableCollection<TaskSpan> TaskSpans { get; } = new();
+        public ObservableCollection<TaskGroup> TaskGroups { get; } = new();
+
+        public List<PredefinedColor> AvailableColors { get; } = new()
+        {
+            new("Blue", "#FF0078D7"),
+            new("Green", "#FF107C10"),
+            new("Orange", "#FFD2691E"),
+            new("Red", "#FFE81123"),
+            new("Purple", "#FF881798"),
+            new("Gray", "#FF808080")
+        };
+
+        public ObservableCollection<ISeries> CategoryPieSeries { get; } = new();
 
         private TaskCategory _idleCategory = null!;
 
@@ -33,7 +53,16 @@ namespace TaskSpanRecorder.ViewModels
         [ObservableProperty]
         private string _currentStatusText = "待機中...";
 
-        public MainViewModel(IContentDialogService contentDialogService)
+        [ObservableProperty]
+        private DateTime _startDate = DateTime.Today;
+
+        [ObservableProperty]
+        private DateTime _endDate = DateTime.Today;
+
+        partial void OnStartDateChanged(DateTime value) => UpdateAggregation();
+        partial void OnEndDateChanged(DateTime value) => UpdateAggregation();
+
+        public MainViewModel(Wpf.Ui.IContentDialogService contentDialogService)
         {
             _contentDialogService = contentDialogService;
 
@@ -58,6 +87,12 @@ namespace TaskSpanRecorder.ViewModels
 
         private void LoadData()
         {
+            var groups = _dbContext.TaskGroups.ToList();
+            foreach (var g in groups)
+            {
+                TaskGroups.Add(g);
+            }
+
             var categories = _dbContext.TaskCategories.ToList();
             foreach (var c in categories)
             {
@@ -67,7 +102,11 @@ namespace TaskSpanRecorder.ViewModels
             _idleCategory = TaskCategories.First(c => c.Id == -1);
             SelectedTaskCategory = TaskCategories.FirstOrDefault(c => c.Id == 1);
 
-            var spans = _dbContext.TaskSpans.Include(ts => ts.TaskCategory).ToList();
+            var spans = _dbContext.TaskSpans
+                .Include(ts => ts.TaskCategory)
+                .ThenInclude(tc => tc.TaskGroup)
+                .ToList();
+
             foreach (var s in spans)
             {
                 TaskSpans.Add(s);
@@ -78,12 +117,14 @@ namespace TaskSpanRecorder.ViewModels
             {
                 CurrentStatusText = $"実行中: {CurrentTaskSpan.TaskCategory?.Name} (開始: {CurrentTaskSpan.StartTime:HH:mm})";
             }
+
+            UpdateAggregation();
         }
 
         private void SwitchToCategory(TaskCategory targetCategory)
         {
             if (CurrentTaskSpan?.TaskCategoryId == targetCategory.Id) return;
-            
+
             var now = DateTime.Now;
             var currentDate = DateOnly.FromDateTime(now);
             var currentTime = TimeOnly.FromDateTime(now);
@@ -113,25 +154,50 @@ namespace TaskSpanRecorder.ViewModels
         [RelayCommand]
         private async Task AddTaskCategoryAsync()
         {
-            var textBox = new Wpf.Ui.Controls.TextBox
+            var panel = new StackPanel();
+
+            var nameTextBox = new Wpf.Ui.Controls.TextBox
             {
                 PlaceholderText = "新しいカテゴリ名を入力"
             };
 
-            var dialog = new ContentDialog
+            var groupLabel = new TextBlock
+            {
+                Text = "グループ (任意)",
+                Margin = new Thickness(0, 0, 0, 5)
+            };
+            var groupComboBox = new ComboBox
+            {
+                ItemsSource = TaskGroups,
+                DisplayMemberPath = "Name",
+                SelectedIndex = 0,
+                HorizontalAlignment = HorizontalAlignment.Stretch
+            };
+
+            panel.Children.Add(nameTextBox);
+            panel.Children.Add(groupLabel);
+            panel.Children.Add(groupComboBox);
+
+            var dialog = new Wpf.Ui.Controls.ContentDialog
             {
                 Title = "カテゴリの追加",
-                Content = textBox,
+                Content = panel,
                 PrimaryButtonText = "追加",
                 CloseButtonText = "キャンセル",
-                DefaultButton = ContentDialogButton.Primary
+                DefaultButton = Wpf.Ui.Controls.ContentDialogButton.Primary
             };
 
             var result = await _contentDialogService.ShowAsync(dialog, default);
 
-            if (result == ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(textBox.Text))
+            if (result == Wpf.Ui.Controls.ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(nameTextBox.Text))
             {
-                var newCategory = new TaskCategory { Name = textBox.Text };
+                var selectedGroup = groupComboBox.SelectedItem as TaskGroup;
+                var newCategory = new TaskCategory
+                {
+                    Name = nameTextBox.Text,
+                    TaskGroupId = selectedGroup?.Id,
+                    TaskGroup = selectedGroup
+                };
 
                 _dbContext.TaskCategories.Add(newCategory);
                 _dbContext.SaveChanges();
@@ -144,6 +210,164 @@ namespace TaskSpanRecorder.ViewModels
         public void SaveChanges()
         {
             _dbContext.SaveChanges();
+        }
+
+        [RelayCommand]
+        public void UpdateAggregation()
+        {
+            CategoryPieSeries.Clear();
+
+            var start = DateOnly.FromDateTime(StartDate);
+            var end = DateOnly.FromDateTime(EndDate);
+
+            var targetSpans = TaskSpans.Where(ts => ts.Date >= start && ts.Date <= end && ts.TaskCategoryId != -1);
+
+            var grouped = targetSpans.GroupBy(ts => ts.TaskCategory?.Name ?? "不明")
+                .Select(g => new
+                {
+                    CategoryName = g.Key,
+                    TotalHours = g.Sum(ts => ts.DurationSeconds) / 3600.0
+                })
+                .Where(g => g.TotalHours > 0)
+                .ToList();
+
+            var jpTypeface = SKTypeface.FromFamilyName("Yu Gothic UI");
+
+            foreach (var item in grouped)
+            {
+                string cleanName = Regex.Replace(item.CategoryName, @"\p{Cs}|\p{So}", "").Trim();
+
+                CategoryPieSeries.Add(new PieSeries<double>
+                {
+                    Name = cleanName,
+                    Values = new[] { item.TotalHours },
+                    DataLabelsFormatter = point => $"{cleanName} ({point.Model:F1} h)",
+                    DataLabelsPosition = LiveChartsCore.Measure.PolarLabelsPosition.Middle,
+                    DataLabelsPaint = new SolidColorPaint(SKColors.White) { SKTypeface = jpTypeface },
+                    ToolTipLabelFormatter = point => $"{point.Model:F2} 時間"
+                });
+            }
+        }
+
+        [RelayCommand]
+        private async Task AddTaskGroupAsync()
+        {
+            var panel = new StackPanel();
+            var nameTextBox = new Wpf.Ui.Controls.TextBox
+            {
+                PlaceholderText = "新しいグループ名を入力"
+            };
+
+            var colorLabel = new TextBlock
+            {
+                Text = "色",
+                Margin = new Thickness(0, 0, 0, 5)
+            };
+            var colorComboBox = new ComboBox
+            {
+                ItemsSource = AvailableColors,
+                DisplayMemberPath = "Name",
+                SelectedIndex = 0,
+                HorizontalAlignment = HorizontalAlignment.Stretch
+            };
+
+            panel.Children.Add(nameTextBox);
+            panel.Children.Add(colorLabel);
+            panel.Children.Add(colorComboBox);
+
+            var dialog = new Wpf.Ui.Controls.ContentDialog
+            {
+                Title = "グループの追加",
+                Content = panel,
+                PrimaryButtonText = "追加",
+                CloseButtonText = "キャンセル",
+                DefaultButton = Wpf.Ui.Controls.ContentDialogButton.Primary
+            };
+
+            var result = await _contentDialogService.ShowAsync(dialog, default);
+
+            if (result == Wpf.Ui.Controls.ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(nameTextBox.Text))
+            {
+                var selectedColor = colorComboBox.SelectedItem as PredefinedColor;
+                var newGroup = new TaskGroup
+                {
+                    Name = nameTextBox.Text,
+                    ColorHex = selectedColor?.Hex ?? "#FF808080"
+                };
+
+                _dbContext.TaskGroups.Add(newGroup);
+                _dbContext.SaveChanges();
+
+                TaskGroups.Add(newGroup);
+
+                await AddTaskCategoryAsync();
+            }
+        }
+
+        [RelayCommand]
+        private async Task EditSelectedCategoryAsync()
+        {
+            if (SelectedTaskCategory == null || SelectedTaskCategory.Id == -1)
+            {
+                return;
+            }
+
+            var panel = new StackPanel();
+
+            var nameLabel = new TextBlock { Text = "カテゴリ名:", Margin = new Thickness(0, 0, 0, 5) };
+            var nameTextBox = new Wpf.Ui.Controls.TextBox { Text = SelectedTaskCategory.Name, Margin = new Thickness(0, 0, 0, 15) };
+
+            var groupLabel = new TextBlock { Text = "所属するグループ (色):", Margin = new Thickness(0, 0, 0, 5) };
+            var groupComboBox = new ComboBox
+            {
+                ItemsSource = TaskGroups,
+                DisplayMemberPath = "Name",
+                SelectedItem = TaskGroups.FirstOrDefault(g => g.Id == SelectedTaskCategory.TaskGroupId),
+                HorizontalAlignment = HorizontalAlignment.Stretch
+            };
+
+            panel.Children.Add(nameLabel);
+            panel.Children.Add(nameTextBox);
+            panel.Children.Add(groupLabel);
+            panel.Children.Add(groupComboBox);
+
+            var dialog = new Wpf.Ui.Controls.ContentDialog
+            {
+                Title = "カテゴリの編集",
+                Content = panel,
+                PrimaryButtonText = "保存",
+                CloseButtonText = "キャンセル",
+                DefaultButton = Wpf.Ui.Controls.ContentDialogButton.Primary
+            };
+
+            var result = await _contentDialogService.ShowAsync(dialog, default);
+
+            if (result == Wpf.Ui.Controls.ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(nameTextBox.Text))
+            {
+                var selectedGroup = groupComboBox.SelectedItem as TaskGroup;
+
+                SelectedTaskCategory.Name = nameTextBox.Text;
+                SelectedTaskCategory.TaskGroupId = selectedGroup?.Id;
+                SelectedTaskCategory.TaskGroup = selectedGroup;
+
+                _dbContext.SaveChanges();
+
+                int index = TaskCategories.IndexOf(SelectedTaskCategory);
+                if (index >= 0)
+                {
+                    TaskCategories[index] = SelectedTaskCategory;
+                    SelectedTaskCategory = TaskCategories[index];
+                }
+
+                var currentSpans = TaskSpans.ToList();
+                TaskSpans.Clear();
+                foreach (var span in currentSpans)
+                {
+                    TaskSpans.Add(span);
+                }
+
+                UpdateAggregation();
+            }
         }
     }
 }

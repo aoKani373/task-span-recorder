@@ -11,6 +11,8 @@
     <UserControl.Resources>
         <local:CategoryYConverter x:Key="CategoryYConverter"/>
         <local:InverseScaleConverter x:Key="InverseScaleConverter"/>
+        <local:HexToBrushConverter x:Key="HexToBrushConverter"/>
+        <local:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
     </UserControl.Resources>
 
     <Grid>
@@ -140,7 +142,13 @@
                                             </ToolTip>
                                         </Grid.ToolTip>
                                         
-                                        <Border Background="{ui:ThemeResource SystemAccentColorPrimaryBrush}" CornerRadius="4" Opacity="0.9" />
+                                        <Border 
+                                            Background="{
+                                                Binding TaskCategory.TaskGroup.ColorHex, 
+                                                Converter={StaticResource HexToBrushConverter}, 
+                                                FallbackValue=Gray}" 
+                                            CornerRadius="4" 
+                                            Opacity="0.9" />
                                         
                                         <Thumb 
                                             HorizontalAlignment="Left" 
@@ -160,7 +168,8 @@
                                             Cursor="SizeWE" 
                                             Background="Transparent" 
                                             DragDelta="Thumb_DragDelta" 
-                                            DragCompleted="Thumb_DragCompleted" >
+                                            DragCompleted="Thumb_DragCompleted"
+                                            Visibility="{Binding EndTime, Converter={StaticResource NullToVisibilityConverter}}">
                                             <Thumb.LayoutTransform>
                                                 <ScaleTransform ScaleX="{Binding ScaleX, ElementName=TimelineScale, Converter={StaticResource InverseScaleConverter}}"/>
                                             </Thumb.LayoutTransform>

@@ -6,9 +6,10 @@
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:local="clr-namespace:TaskSpanRecorder"
         xmlns:controls="clr-namespace:TaskSpanRecorder.Controls"
+        xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF"
         mc:Ignorable="d"
         Title="MainWindow"
-        Height="450" Width="800"
+        Height="600" Width="800"
         ExtendsContentIntoTitleBar="True"
         WindowBackdropType="Mica">
     <Grid>
@@ -31,12 +32,16 @@
                     DisplayMemberPath="Name"
                     SelectedItem="{Binding SelectedTaskCategory}"
                     Width="200" Margin="0,0,10,0" />
-                
+
+                <ui:Button Content="編集" Icon="{ui:SymbolIcon Symbol=Edit24}" Command="{Binding EditSelectedCategoryCommand}" Appearance="Transparent" Margin="0,0,10,0"/>
+
                 <ui:Button Content="開始 / 切り替え" Icon="{ui:SymbolIcon Symbol=Play24}" Command="{Binding StartSelectedTaskCommand}" Appearance="Primary" Margin="0,0,10,0"/>
 
                 <ui:Button Content="休憩 / 中断" Icon="{ui:SymbolIcon Symbol=Pause24}" Command="{Binding SwitchToIdleCommand}" Appearance="Secondary" Margin="0,0,10,0"/>
 
-                <ui:Button Content="新規カテゴリ" Icon="{ui:SymbolIcon Symbol=Add24}" Command="{Binding AddTaskCategoryCommand}" Appearance="Transparent"/>
+                <ui:Button Content="新規カテゴリ" Icon="{ui:SymbolIcon Symbol=Add24}" Command="{Binding AddTaskCategoryCommand}" Appearance="Transparent" Margin="0,0,10,0"/>
+
+                <ui:Button Content="新規グループ" Icon="{ui:SymbolIcon Symbol=Add24}" Command="{Binding AddTaskGroupCommand}" Appearance="Transparent"/>
             </StackPanel>
         </StackPanel>
 
@@ -55,6 +60,26 @@
                         <DataGridTextColumn Header="終了" Binding="{Binding EndTime, StringFormat=HH:mm:ss}" Width="100"/>
                     </ui:DataGrid.Columns>
                 </ui:DataGrid>
+            </TabItem>
+
+            <TabItem Header="集計 (グラフ)" FontSize="14" FontWeight="SemiBold">
+                <Grid Margin="0,15,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15" HorizontalAlignment="Center">
+                        <TextBlock Text="集計期間:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,10,0"/>
+                        <DatePicker SelectedDate="{Binding StartDate}" Width="130" />
+                        <TextBlock Text="〜" VerticalAlignment="Center" Margin="10,0"/>
+                        <DatePicker SelectedDate="{Binding EndDate}" Width="130" />
+
+                        <ui:Button Content="更新" Icon="{ui:SymbolIcon ArrowRepeatAll24}" Command="{Binding UpdateAggregationCommand}" Margin="15,0,0,0" Appearance="Secondary"/>
+                    </StackPanel>
+
+                    <lvc:PieChart Grid.Row="1" Series="{Binding CategoryPieSeries}" InitialRotation="-90" />
+                </Grid>
             </TabItem>
 
         </TabControl>
